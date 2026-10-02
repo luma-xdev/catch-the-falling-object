@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Catch the Falling Object</title>
+
+<style>
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  min-height: 100vh;
+  font-family: Arial, sans-serif;
+  color: white;
+  background: #100e2b;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 16px;
+}
+
+.game-container {
+  width: 100%;
+  max-width: 520px;
+  text-align: center;
+}
+
+h1 {
+  font-size: clamp(25px, 6vw, 36px);
+  margin-bottom: 8px;
+  color: #ffe66d;
+}
+
+.subtitle {
+  color: #c9c6f4;
+  margin-bottom: 18px;
+  font-size: 14px;
+}
+
+.hud {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.stat {
+  padding: 12px 5px;
+  border-radius: 12px;
+  background: #24204b;
+  border: 1px solid #474078;
+}
+
+.stat small {
+  display: block;
+  color: #bcb7ed;
+  margin-bottom: 5px;
+  font-size: 12px;
+}
+
+.stat strong {
+  font-size: 20px;
+}
+
+#game {
+  position: relative;
+  width: 100%;
+  height: min(58vh, 440px);
+  min-height: 300px;
+  overflow: hidden;
+  border: 2px solid #7569ce;
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 20% 20%, #37316f 0 2px, transparent 3px),
+    radial-gradient(circle at 75% 35%, #6556a5 0 2px, transparent 3px),
+    linear-gradient(180deg, #201a51, #38256e 75%, #19143c);
+  background-size: 75px 85px, 110px 100px, auto;
+  box-shadow: 0 0 35px #6555bb33;
+  touch-action: none;
+}
+
+#game::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  height: 8px;
+  width: 100%;
+  background: #56e39f;
+  box-shadow: 0 0 18px #56e39f;
+}
+
+.object {
+  position: absolute;
+  top: 0;
+  font-size: 32px;
+  line-height: 1;
+  user-select: none;
+  pointer-events: none;
+  filter: drop-shadow(0 4px 4px #0005);
+}
+
+#basket {
+  position: absolute;
+  z-index: 5;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 52px;
+  line-height: 1;
+  user-select: none;
+  pointer-events: none;
+}
+
+.overlay {
+  position: absolute;
+  z-index: 10;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+  background: #100e2bdc;
+}
+
+.overlay.hidden {
+  display: none;
+}
+
+.panel {
+  width: 100%;
+  max-width: 300px;
+  padding: 25px 18px;
+  border-radius: 18px;
+  background: #292353;
+  border: 1px solid #796bd0;
+}
+
+.panel h2 {
+  color: #ffe66d;
+  font-size: 27px;
+  margin-bottom: 12px;
+}
+
+.panel p {
+  line-height: 1.6;
+  color: #e0dcff;
+  margin-bottom: 17px;
+}
+
+button {
+  border: none;
+  border-radius: 12px;
+  padding: 13px 20px;
+  font-weight: bold;
+  font-size: 15px;
+  cursor: pointer;
+  background: #ffe66d;
+  color: #201a51;
+  transition: transform 0.15s, filter 0.15s;
+}
+
+button:hover {
+  filter: brightness(1.08);
+  transform: translateY(-2px);
+}
+
+.controls {
+  display: flex;
+  gap: 12px;
+  margin-top: 13px;
+}
+
+.controls button {
+  flex: 1;
+  touch-action: manipulation;
+  background: #342d68;
+  color: white;
+  border: 1px solid #6559a6;
+  font-size: 23px;
+}
+
+.hint {
+  margin-top: 12px;
+  color: #bcb7ed;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+#message {
+  min-height: 22px;
+  margin-top: 8px;
+  color: #ffe66d;
+  font-size: 14px;
+}
+
+@media (max-width: 380px) {
+  .stat strong {
+    font-size: 17px;
+  }
+
+  #game {
+    min-height: 280px;
+  }
+}
+</style>
+</head>
+
+<body>
+<div class="game-container">
+
+  <h1>🎯 Catch the Falling Object</h1>
+  <p class="subtitle">Catch the good stuff. Avoid the bombs!</p>
+
+  <div class="hud">
+    <div class="stat">
+      <small>⭐ SCORE</small>
+      <strong id="score">0</strong>
+    </div>
+    <div class="stat">
+      <small>❤️ LIVES</small>
+      <strong id="lives">3</strong>
+    </div>
+    <div class="stat">
+      <small>⏱️ TIME</small>
+      <strong id="time">45</strong>
+    </div>
+  </div>
+
+  <div id="game">
+    <div id="basket">🧺</div>
+
+    <div class="overlay" id="startOverlay">
+      <div class="panel">
+        <h2>Ready to Play?</h2>
+        <p>
+          Catch apples, stars and coins.<br>
+          Avoid bombs! 💣<br>
+          You have 45 seconds.
+        </p>
+        <button id="startBtn">▶ Start Game</button>
+      </div>
+    </div>
+
+    <div class="overlay hidden" id="endOverlay">
+      <div class="panel">
+        <h2 id="endTitle">Game Over!</h2>
+        <p id="endText">Your score: 0</p>
+        <button id="restartBtn">↻ Play Again</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button id="leftBtn" aria-label="Move left">⬅️</button>
+    <button id="rightBtn" aria-label="Move right">➡️</button>
+  </div>
+
+  <p class="hint">
+    Use ← → arrow keys, the buttons, or drag your finger
+    across the game area to move the basket.
+  </p>
+
+  <p id="message" aria-live="polite"></p>
+</div>
+
+<script>
+const game = document.getElementById("game");
+const basket = document.getElementById("basket");
+const scoreEl = document.getElementById("score");
+const livesEl = document.getElementById("lives");
+const timeEl = document.getElementById("time");
+const message = document.getElementById("message");
+
+const startOverlay = document.getElementById("startOverlay");
+const endOverlay = document.getElementById("endOverlay");
+const endTitle = document.getElementById("endTitle");
+const endText = document.getElementById("endText");
+
+const GOOD = ["🍎", "🍊", "⭐", "🪙", "🍓", "💎"];
+const BAD = ["💣"];
+
+let score = 0;
+let lives = 3;
+let timeLeft = 45;
+let basketX = 0;
+let objects = [];
+let running = false;
+let lastTime = 0;
+let spawnTimer = 0;
+let clockTimer = null;
+let animationId = null;
+let messageTimer = null;
+
+function basketWidth() {
+  return basket.offsetWidth;
+}
+
+function moveBasket(x) {
+  const max = game.clientWidth - basketWidth();
+  basketX = Math.max(0, Math.min(max, x));
+  basket.style.left = basketX + basketWidth() / 2 + "px";
+}
+
+function setBasketCenter(center) {
+  moveBasket(center - basketWidth() / 2);
+}
+
+function clearObjects() {
+  objects.forEach(obj => obj.el.remove());
+  objects = [];
+}
+
+function createObject() {
+  if (!running) return;
+
+  const isBomb = Math.random() < 0.18;
+  const el = document.createElement("div");
+  el.className = "object";
+  el.textContent = isBomb
+    ? BAD[Math.floor(Math.random() * BAD.length)]
+    : GOOD[Math.floor(Math.random() * GOOD.length)];
+
+  const size = 32;
+  const x = Math.random() * Math.max(1, game.clientWidth - size);
+
+  el.style.left = x + "px";
+  el.style.top = "-40px";
+  game.appendChild(el);
+
+  objects.push({
+    el,
+    x,
+    y: -40,
+    size,
+    bomb: isBomb,
+    speed: 150 + Math.random() * 100 + score * 1.2
+  });
+}
+
+function showMessage(text) {
+  message.textContent = text;
+  clearTimeout(messageTimer);
+  messageTimer = setTimeout(() => {
+    message.textContent = "";
+  }, 900);
+}
+
+function updateHUD() {
+  scoreEl.textContent = score;
+  livesEl.textContent = lives;
+  timeEl.textContent = timeLeft;
+}
+
+function endGame(won = false) {
+  if (!running) return;
+
+  running = false;
+  clearInterval(clockTimer);
+  cancelAnimationFrame(animationId);
+  clearObjects();
+
+  endTitle.textContent = won ? "🏆 You Win!" : "🎮 Game Over!";
+  endText.innerHTML =
+    `Your score: <strong>${score}</strong><br>` +
+    (won ? "Amazing catching skills!" : "Try again and beat your score!");
+
+  endOverlay.classList.remove("hidden");
+}
+
+function startGame() {
+  clearInterval(clockTimer);
+  cancelAnimationFrame(animationId);
+  clearTimeout(messageTimer);
+  clearObjects();
+
+  score = 0;
+  lives = 3;
+  timeLeft = 45;
+  spawnTimer = 0;
+  lastTime = 0;
+  running = true;
+
+  updateHUD();
+  message.textContent = "";
+  startOverlay.classList.add("hidden");
+  endOverlay.classList.add("hidden");
+
+  moveBasket((game.clientWidth - basketWidth()) / 2);
+
+  clockTimer = setInterval(() => {
+    if (!running) return;
+
+    timeLeft--;
+    updateHUD();
+
+    if (timeLeft <= 0) {
+      endGame(true);
+    }
+  }, 1000);
+
+  animationId = requestAnimationFrame(loop);
+}
+
+function loop(timestamp) {
+  if (!running) return;
+
+  if (!lastTime) lastTime = timestamp;
+  const dt = Math.min((timestamp - lastTime) / 1000, 0.04);
+  lastTime = timestamp;
+
+  spawnTimer += dt;
+  const spawnInterval = Math.max(0.35, 0.8 - score * 0.003);
+
+  if (spawnTimer >= spawnInterval) {
+    spawnTimer = 0;
+    createObject();
+  }
+
+  const gameHeight = game.clientHeight;
+  const basketTop = gameHeight - basket.offsetHeight - 12;
+  const bx = basketX;
+  const bw = basketWidth();
+
+  for (let i = objects.length - 1; i >= 0; i--) {
+    const obj = objects[i];
+    obj.y += obj.speed * dt;
+    obj.el.style.top = obj.y + "px";
+
+    const caught =
+      obj.y + obj.size >= basketTop &&
+      obj.y <= basketTop + basket.offsetHeight &&
+      obj.x + obj.size > bx + 5 &&
+      obj.x < bx + bw - 5;
+
+    if (caught) {
+      if (obj.bomb) {
+        lives--;
+        showMessage("💥 Bomb! -1 Life");
+      } else {
+        score += obj.el.textContent === "💎" ? 5 : 1;
+        showMessage(obj.el.textContent === "💎" ? "💎 +5 Points!" : "✨ Nice Catch!");
+      }
+
+      obj.el.remove();
+      objects.splice(i, 1);
+      updateHUD();
+
+      if (lives <= 0) {
+        endGame(false);
+        return;
+      }
+      continue;
+    }
+
+    if (obj.y > gameHeight) {
+      if (!obj.bomb) {
+        lives--;
+        updateHUD();
+        showMessage("Missed! ❤️ -1 Life");
+
+        if (lives <= 0) {
+          endGame(false);
+          return;
+        }
+      }
+
+      obj.el.remove();
+      objects.splice(i, 1);
+    }
+  }
+
+  animationId = requestAnimationFrame(loop);
+}
+
+document.getElementById("startBtn").addEventListener("click", startGame);
+document.getElementById("restartBtn").addEventListener("click", startGame);
+
+document.addEventListener("keydown", event => {
+  if (!running) return;
+
+  if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+    event.preventDefault();
+    const step = 32;
+    moveBasket(basketX + (event.key === "ArrowLeft" ? -step : step));
+  }
+});
+
+function holdMove(direction) {
+  if (!running) return;
+  moveBasket(basketX + direction * 28);
+}
+
+document.getElementById("leftBtn").addEventListener("click", () => holdMove(-1));
+document.getElementById("rightBtn").addEventListener("click", () => holdMove(1));
+
+let dragging = false;
+
+game.addEventListener("pointerdown", event => {
+  if (!running) return;
+  if (event.target.closest(".overlay")) return;
+
+  dragging = true;
+  game.setPointerCapture(event.pointerId);
+
+  const rect = game.getBoundingClientRect();
+  setBasketCenter(event.clientX - rect.left);
+});
+
+game.addEventListener("pointermove", event => {
+  if (!dragging || !running) return;
+
+  const rect = game.getBoundingClientRect();
+  setBasketCenter(event.clientX - rect.left);
+});
+
+game.addEventListener("pointerup", () => {
+  dragging = false;
+});
+
+game.addEventListener("pointercancel", () => {
+  dragging = false;
+});
+
+window.addEventListener("resize", () => {
+  moveBasket(basketX);
+});
+
+moveBasket(0);
+</script>
+</body>
+  </html>
+  
